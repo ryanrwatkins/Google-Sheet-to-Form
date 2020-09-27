@@ -1,0 +1,61 @@
+function onEdit(e) {
+  
+var ss = SpreadsheetApp.openById('#####. Sheet ID from the URL  ######');
+var form = FormApp.openById('###### Form ID from the URL #######');
+
+
+   // clear current form items
+var items = form.getItems();
+  while(items.length > 0){
+    form.deleteItem(items.pop());
+  } 
+  
+  // you can add a title here or in the form, since I don't want it to change I just put the title in the form.
+  // add first time, which in this case is to select from a list, which pipes you to the appropriate page based on selection
+  
+
+  var discipline = form.addListItem()
+      discipline.setTitle('Select a discipline')   
+      discipline.setChoices([
+        discipline.createChoice('Math', form.addPageBreakItem().setTitle('Math')),
+        discipline.createChoice('Econ', form.addPageBreakItem().setTitle('Econ'))
+     ])
+
+
+// each page from above can then be populated with data from a different sheet within the spreadsheet
+// in this case the data from each row in the sheet is used to create a multiple choice items where form completers can choose to either read or skip
+
+  var sheet_econ = ss.getSheetByName('Econ');
+  var range = sheet_econ.getRange('A2:D101')
+  var data = range.getValues()
+ 
+  for (var i = 0; i < data.length; i++) { 
+      var title = data[i][0]
+      var abstract = data[i][1]
+      var os = data[i][3]
+      var item = form.addMultipleChoiceItem()
+      item.setTitle('TITLE: ' + title + ' OPEN: ' + os + 'ABSTRACT: ' + abstract)
+      item.setChoices([
+        item.createChoice('Read'),
+        item.createChoice('Skip')
+     ])
+  }   
+      
+
+  var sheet_math = ss.getSheetByName("Math");
+  var range = sheet_math.getRange('A2:D101')
+  var data = range.getValues()
+ 
+  for (var i = 0; i < data.length; i++) { 
+      var title = data[i][0]
+      var abstract = data[i][1]
+      var os = data[i][3]
+      var item = form.addMultipleChoiceItem()
+      item.setTitle('TITLE: ' + title + ' OPEN: ' + os + 'ABSTRACT: ' + abstract)
+      item.setChoices([
+        item.createChoice('Read'),
+        item.createChoice('Skip')
+     ])
+  }
+  
+}
