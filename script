@@ -1,32 +1,35 @@
+// This script questions from a Google spreadsheet with multiple sheets/tabs and uses them to create a form with 3 sections.
+// The first selection allows you to select which of the other two sections you want to complete on the form, and creates 50 questions for each topic.
+
 function onEdit(e) {
   
-var ss = SpreadsheetApp.openById('#####. Sheet ID from the URL  ######');
-var form = FormApp.openById('###### Form ID from the URL #######');
+var ss = SpreadsheetApp.openById('#######');
+var form = FormApp.openById('########');
 
 
-   // clear current form items
-var items = form.getItems();
-  while(items.length > 0){
-    form.deleteItem(items.pop());
-  } 
+   // clear old form
+var items=form.getItems();
+  var d=0;//deleted items counter
+  for (var i=0; i<items.length; i++) {
+    form.deleteItem(i-d++);
+  }
   
-  // you can add a title here or in the form, since I don't want it to change I just put the title in the form.
-  // add first time, which in this case is to select from a list, which pipes you to the appropriate page based on selection
+  // add form title if you want
   
 
+  // create new item, a dropdown ist that will get choices at the bottom. This let's the user pick which set of questions they want to answer
   var discipline = form.addListItem()
       discipline.setTitle('Select a discipline')   
-      discipline.setChoices([
-        discipline.createChoice('Math', form.addPageBreakItem().setTitle('Math')),
-        discipline.createChoice('Econ', form.addPageBreakItem().setTitle('Econ'))
-     ])
-
-
-// each page from above can then be populated with data from a different sheet within the spreadsheet
-// in this case the data from each row in the sheet is used to create a multiple choice items where form completers can choose to either read or skip
-
-  var sheet_econ = ss.getSheetByName('Econ');
-  var range = sheet_econ.getRange('A2:D101')
+      
+      
+      // create a new item that will start a new page/section on the form, and at the end of the page/section they will get a submit button
+ var econ = form.addPageBreakItem()
+ econ.setTitle('Econ');
+   econ.setGoToPage(FormApp.PageNavigationType.SUBMIT);
+  
+  // create items to go in that section, in this case we are putting in multipechoice items
+    var sheet_econ = ss.getSheetByName('Econ');
+  var range = sheet_econ.getRange('A2:D51')
   var data = range.getValues()
  
   for (var i = 0; i < data.length; i++) { 
@@ -40,10 +43,15 @@ var items = form.getItems();
         item.createChoice('Skip')
      ])
   }   
-      
+  
+  // create another new section of the form
+ var math = form.addPageBreakItem()
+     math.setTitle('Math');
+    math.setGoToPage(FormApp.PageNavigationType.SUBMIT);
 
+// add items to this section
   var sheet_math = ss.getSheetByName("Math");
-  var range = sheet_math.getRange('A2:D101')
+  var range = sheet_math.getRange('A2:D51')
   var data = range.getValues()
  
   for (var i = 0; i < data.length; i++) { 
@@ -58,4 +66,59 @@ var items = form.getItems();
      ])
   }
   
+  
+  // now set choices for the dropdown list that link you to the appropriate sections with questions in them. 
+  // Too add that link to the sections we have to define them first, that is why we waiting to define these choice options, which is the second element of the createChoice below
+      discipline.setChoices([
+        discipline.createChoice('Math', math ),
+        discipline.createChoice("Econ", econ),
+     ]);
+     
+}
+
+
+
+// For my use, my Google sheets use the import function to scrape websites for data, that then get used in the question. 
+// To keep those pages current with the newest data, I use this script (triggered to run once a day) to update the scraping data.
+
+/**
+ * From: http://stackoverflow.com/a/33875957/1677912
+ * https://daviseford.com/blog/2017/05/04/importxml-force-refresh.html#:~:text=Google%20Spreadsheets%20will%20automatically%20update,IMPORTXML()%20cell%20will%20update.
+ * Adapted by Davis E. Ford, May 5, 2017
+ */
+function RefreshImports() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;             // Wait up to 5s for previous refresh to end.
+  // At this point, we are holding the lock.
+
+  var id = "18jQqX_I2SHMY-HwIHWB-TUG6YF4zG410n0MeYnHUnq0";
+  var ss = SpreadsheetApp.openById(id);
+  var sheets = ss.getSheets();
+
+  for (var sheetNum=0; sheetNum<sheets.length; sheetNum++) {
+    var sheet = sheets[sheetNum];
+    var dataRange = sheet.getDataRange();
+    var formulas = dataRange.getFormulas();
+    var tempFormulas = [];
+    for (var row=0; row<formulas.length; row++) {
+      for (col=0; col<formulas[0].length; col++) {
+        // See https://regex101.com/r/bE7fJ6/2
+        var re = /.*[^a-z0-9]import(?:xml|data|feed|html|range)\(.*/gi;
+        if (formulas[row][col].search(re) !== -1 ) {
+          // Use a blank cell here, set it to whatever you want
+          sheet.getRange("J2").setValue(Math.round(Math.random()*100000));
+        }
+      }
+    }
+
+    // After a pause, replace the import functions
+    Utilities.sleep(2000);
+    for (var i=0; i<tempFormulas.length; i++) {
+      var cell = tempFormulas[i];
+      sheet.getRange( cell.row, cell.col ).setFormula(cell.formula)
+    }
+
+    // Done refresh; release the lock.
+    lock.releaseLock();
+  }
 }
